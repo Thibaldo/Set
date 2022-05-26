@@ -31,50 +31,57 @@ struct GameView: View {
     @State private var deck = [Card]()
     @State private var board = [Card]()
     @State private var selectedCards = [Card]()
-    @State private var initAvailable = true
-    @State private var score = 1
+    @State private var score = 0
+    @State private var answer: AnswerType = .noAnswer
+    @State private var gameIsOver = false
+    @Binding var startGame: Bool
     
     let columns = [
         GridItem(.flexible()),
         GridItem(.flexible()),
         GridItem(.flexible()),
-        GridItem(.flexible())
+        GridItem(.flexible()),
     ]
+    
     
     var body: some View {
         GeometryReader { geometry in
-            VStack {
-                LazyVGrid(columns: columns, spacing: 20) {
-                    ForEach(board) { card in
-                        CardView(card: card, isSelected: selectedCards.contains(where: {$0.id == card.id}))
-                            .frame(width: geometry.size.width * 0.22, height: geometry.size.height * 0.3)
-                            .onTapGesture {
-                                selectCard(card)
-                            }
+            ZStack() {
+                BackgroundView(answer: answer)
+                
+                VStack {
+                    HStack {
+                        Spacer()
+                        TimerView(timerRunning: true, trigger: {
+                            gameIsOver = true
+                        })
                     }
+                    
+                    LazyVGrid(columns: columns, spacing: 20) {
+                        ForEach(board) { card in
+                            CardView(card: card, isSelected: selectedCards.contains(where: {$0.id == card.id}))
+                                .frame(width: geometry.size.width * 0.21, height: geometry.size.height * 0.25)
+                                .onTapGesture {
+                                    selectCard(card)
+                                }
+                        }
+                    }
+                    .padding(.horizontal, 40)
                 }
                 
-                if initAvailable {
-                    Button() {
-                        initDeck()
-                        initBoard()
-                        initAvailable = false
-                    }
-                    label: {
-                        Spacer()
-                        Text("PLAY")
-                        Spacer()
-                    }
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(.blue)
-                    .clipShape(Capsule())
-                    .frame(maxWidth: 100)
-                }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .padding()
+        .onAppear() {
+            initDeck()
+            initBoard()
+        }
+        .alert("Time is over!", isPresented: $gameIsOver) {
+            Button("OK", role: .cancel) {
+                startGame = false
+            }
+        } message: {
+            Text("Your score: \(score)")
+        }
     }
     
     func initDeck() {
@@ -97,7 +104,6 @@ struct GameView: View {
     }
     
     func selectCard(_ card: Card) {
-
         if let i = selectedCards.firstIndex(where: { $0.id == card.id }) {
             selectedCards.remove(at: i)
         } else {
@@ -117,7 +123,7 @@ struct GameView: View {
         var colorsMatches: Set<CardColor> = []
         var fillingsMatches: Set<CardFilling> = []
         var numberMatches: Set<Int> = []
-
+        
         selectedCards.forEach { card in
             shapesMatches.insert(card.shape)
             colorsMatches.insert(card.color)
@@ -126,22 +132,42 @@ struct GameView: View {
         }
         
         if shapesMatches.count != 2 && colorsMatches.count != 2 && fillingsMatches.count != 2 && numberMatches.count != 2 {
-            score += 1
+            score += 20
             drawCards()
-            print("SET")
+            withAnimation(.easeIn(duration: 0.5)) {
+                answer = .goodAnswer
+            }
+            withAnimation(.easeIn(duration: 0.5).delay(0.7)) {
+                answer = .noAnswer
+            }
+            
+        } else {
+            score -= 10
+            withAnimation(.easeIn(duration: 0.5)) {
+                answer = .wrongAnswer
+            }
+            withAnimation(.easeIn(duration: 0.5).delay(0.7)) {
+                answer = .noAnswer
+            }
         }
         
         selectedCards.removeAll()
     }
     
+    
     func drawCards() {
+        if deck.count < 3 {
+            gameIsOver = true
+        }
+        
         selectedCards.forEach { selectedCard in
             guard let index = board.firstIndex(where: { $0.id == selectedCard.id }) else {
                 print("Error")
                 return
             }
-            
-            board[index] = deck.removeFirst()
+            withAnimation(.easeIn(duration: 0.3)) {
+                board[index] = deck.removeFirst()
+            }
         }
     }
     
@@ -149,7 +175,7 @@ struct GameView: View {
 
 struct GameView_Previews: PreviewProvider {
     static var previews: some View {
-        GameView()
+        GameView(startGame: .constant(false))
             .previewInterfaceOrientation(.landscapeRight)
     }
 }

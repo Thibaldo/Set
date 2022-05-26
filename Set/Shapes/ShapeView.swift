@@ -12,7 +12,7 @@ struct Hatching: Shape {
         var path = Path()
         
         for x in Int(rect.minX)..<Int(rect.maxX) {
-            if x.isMultiple(of: 10) {
+            if x.isMultiple(of: 8) {
                 path.move(to: CGPoint(x: Double(x), y: rect.minY))
                 path.addLine(to: CGPoint(x: Double(x), y: rect.maxY))
             }
